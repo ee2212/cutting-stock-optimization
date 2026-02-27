@@ -5,28 +5,34 @@ from common.packing import pack_sequence
 from FFD import ffd
 from SA import simulated_annealing
 
+import json
+with open("data/complex_sets.json", "r", encoding="utf-8") as f:
+    complex_data = json.load(f)
+    complex_sets = complex_data["наборы"]
+
+
 def run_comparison(max_parts=100, sa_fast_mode=True):
     """
     Сравнение FFD и SA на всех доступных наборах.
-    Выводит количество листов, полезные остатки и коэффициент использования.
+    SA стартует с решения, полученного FFD (порядок по убыванию площади).
     """
     manual_sets = load_test_sets()
     generated_sets = load_generated_sets()
-    all_sets = manual_sets + generated_sets
+    
+    all_sets = manual_sets + generated_sets + complex_sets
 
     # Фильтруем по количеству деталей
     filtered_sets = [s for s in all_sets if len(s["детали"]) <= max_parts]
     skipped = len(all_sets) - len(filtered_sets)
 
-    # Шапка таблицы
-    print("\n" + "=" * 160)
+    print("\n" + "=" * 150)
     print(f"Загружено наборов: всего {len(all_sets)}, обрабатывается {len(filtered_sets)} (пропущено {skipped} из-за лимита {max_parts} деталей)")
-    print("=" * 160)
+    print("=" * 150)
     print(f"{'Набор':<25} {'Дет':<4} {'WxH':<10} "
           f"{'FFD л':<4} {'FFD ост':<6} {'FFD %':<5} "
           f"{'SA ср':<6} {'SA л':<4} {'SA ост':<6} {'SA %':<5} "
           f"{'Улучш%':<6} {'Разн ост':<12}")
-    print("=" * 160)
+    print("=" * 150)
 
     for ts in filtered_sets:
         name = ts["название"]
@@ -42,15 +48,20 @@ def run_comparison(max_parts=100, sa_fast_mode=True):
         usable_ffd = stats_ffd['usable_leftover_area']
         util_ffd = stats_ffd['utilization_rate']
 
+        # ----- Получаем начальное решение от FFD -----
+        # Порядок укладки FFD: сортировка по убыванию площади
+        ffd_order = sorted(range(n), key=lambda i: items[i]['w'] * items[i]['h'], reverse=True)
+        initial_solution = (ffd_order, None)
+
         # ----- SA с адаптивными параметрами -----
         n_runs = 5
         if n > 30:
             sa_params = {
-                'initial_temp': 120.0,
-                'cooling_rate': 0.97,
-                'min_temp': 2.0,
-                'iterations_per_temp': 150,
-                'max_no_improve': 80,
+                'initial_temp': 200.0,
+                'cooling_rate': 0.99,
+                'min_temp': 0.1,
+                'iterations_per_temp': 500,
+                'max_no_improve': 200,
             }
         elif n > 20:
             sa_params = {
@@ -75,7 +86,8 @@ def run_comparison(max_parts=100, sa_fast_mode=True):
         for run in range(n_runs):
             seq, rot, cost = simulated_annealing(
                 items=items, W=W, H=H, allow_rotation=True,
-                **sa_params, verbose=False
+                **sa_params, verbose=False,
+                initial_solution=initial_solution   # передаём решение от FFD
             )
             sa_costs.append(cost)
             if cost < sa_best_cost:
@@ -106,7 +118,7 @@ def run_comparison(max_parts=100, sa_fast_mode=True):
               f"{sa_avg:<6.2f} {sa_best:<4} {usable_sa:<6.0f} {util_sa:<5.1f} "
               f"{improvement:<6.1f} {diff_usable:<+6.0f} ({rel_diff:<+5.1f}%)")
 
-    print("=" * 160)
+    print("=" * 150)
 
 if __name__ == "__main__":
     run_comparison(max_parts=100, sa_fast_mode=True)

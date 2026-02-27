@@ -1,7 +1,7 @@
 # SA.py
 """
 Имитация отжига (Simulated Annealing) для задачи двумерного раскроя.
-Модифицирована для возможности возврата листов лучшего решения.
+Модифицирована для приёма начального решения (например, от FFD) с возможностью None-поворотов.
 """
 
 import random
@@ -62,17 +62,24 @@ def simulated_annealing(items, W, H, allow_rotation=True,
                         initial_temp=100.0, cooling_rate=0.95,
                         min_temp=1.0, iterations_per_temp=100,
                         max_no_improve=50, verbose=True,
-                        return_sheets=False):
+                        return_sheets=False,
+                        initial_solution=None):   # новый параметр
     """
     Запускает имитацию отжига.
-    Если return_sheets=True, возвращает (best_seq, best_rot, best_cost, best_sheets).
-    Иначе возвращает (best_seq, best_rot, best_cost).
+    Если initial_solution передан (кортеж (seq, rot)), использует его как начальное.
+    rot может быть None (автоматический выбор поворота) или списком.
+    Иначе генерирует случайное.
     """
     n = len(items)
-    # Начальное решение
-    current_seq = list(range(n))
-    random.shuffle(current_seq)
-    current_rot = [random.randint(0, 1) for _ in range(n)] if allow_rotation else None
+    if initial_solution is not None:
+        current_seq, current_rot = initial_solution
+        if len(current_seq) != n:
+            raise ValueError("Initial sequence length does not match number of items")
+        # Не меняем current_rot, оставляем как есть (может быть None)
+    else:
+        current_seq = list(range(n))
+        random.shuffle(current_seq)
+        current_rot = [random.randint(0, 1) for _ in range(n)] if allow_rotation else None
 
     # Функция стоимости (количество листов)
     def cost(seq, rot):
