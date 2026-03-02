@@ -72,7 +72,7 @@ def simulated_annealing(items, W, H, allow_rotation=True,
     # Начальное решение
     current_seq = list(range(n))
     random.shuffle(current_seq)
-    current_rot = [random.randint(0, 1) for _ in range(n)] if allow_rotation else None
+    current_rot = None
 
     # Функция стоимости (количество листов)
     def cost(seq, rot):
