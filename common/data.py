@@ -86,7 +86,20 @@ def load_generated_sets(filename="data/generated_sets.json"):
     return data.get("наборы", [])
 
 
-def load_sa_generated_sets(filename="data/diverse_sets_strips1.json"):
+def load_sa_generated_sets(filename="data/diverse_sets.json"):
+    """
+    Загружает сгенерированные наборы из JSON-файла.
+    Возвращает список словарей в формате, аналогичном load_test_sets.
+    """
+    if not os.path.exists(filename):
+        print(f"Файл {filename} не найден. Возвращается пустой список.")
+        return []
+    with open(filename, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    return data.get("наборы", [])
+
+
+def load_sa_generated_directional_sets(filename="data/directional_sets.json"):
     """
     Загружает сгенерированные наборы из JSON-файла.
     Возвращает список словарей в формате, аналогичном load_test_sets.

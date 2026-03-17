@@ -8,7 +8,6 @@ import random
 import math
 from copy import deepcopy
 from common.packing import pack_sequence
-from common.analysis import analyze_leftovers   # для вычисления полезных остатков
 
 # ====================== Вспомогательные геометрические функции ======================
 def can_place(placed, x, y, w, h, W, H):
@@ -68,30 +67,22 @@ def simulated_annealing(items, W, H, allow_rotation=True,
     Запускает имитацию отжига.
     Если return_sheets=True, возвращает (best_seq, best_rot, best_cost, best_sheets).
     Иначе возвращает (best_seq, best_rot, best_cost).
-    best_cost – количество использованных листов.
     """
     n = len(items)
-    BIG_M = 10000 * W * H   # очень большой штраф за каждый дополнительный лист
-
-    # Функция, возвращающая (число листов, полезная площадь остатков, энергия)
-    def get_metrics(seq, rot):
-        sheets, n_sheets = pack_sequence(seq, items, W, H, rotations=rot)
-        stats = analyze_leftovers(sheets, items, W, H)
-        usable = stats['usable_leftover_area']
-        energy = n_sheets * BIG_M - usable   # чем меньше энергия, тем лучше
-        return n_sheets, usable, energy
-
     # Начальное решение
     current_seq = list(range(n))
     random.shuffle(current_seq)
     current_rot = None
 
-    current_sheets, current_usable, current_energy = get_metrics(current_seq, current_rot)
+    # Функция стоимости (количество листов)
+    def cost(seq, rot):
+        _, n_sheets = pack_sequence(seq, items, W, H, rotations=rot)
+        return n_sheets
+
+    current_cost = cost(current_seq, current_rot)
     best_seq = current_seq[:]
     best_rot = deepcopy(current_rot) if current_rot else None
-    best_sheets = current_sheets
-    best_usable = current_usable
-    best_energy = current_energy
+    best_cost = current_cost
 
     temp = initial_temp
     no_improve = 0
@@ -99,23 +90,21 @@ def simulated_annealing(items, W, H, allow_rotation=True,
     if verbose:
         print("Начало имитации отжига")
         print(f"Начальная температура: {temp}, коэффициент охлаждения: {cooling_rate}")
-        print(f"Начальное решение: {current_sheets} листов, полезных остатков: {current_usable:.0f}")
+        print(f"Начальное решение: {current_cost} листов")
 
     while temp > min_temp and no_improve < max_no_improve:
         for _ in range(iterations_per_temp):
             new_seq, new_rot = generate_neighbor(current_seq, current_rot, allow_rotation=allow_rotation)
-            new_sheets, new_usable, new_energy = get_metrics(new_seq, new_rot)
-            delta = new_energy - current_energy
+            new_cost = cost(new_seq, new_rot)
+            delta = new_cost - current_cost
 
             if delta < 0 or random.random() < math.exp(-delta / temp):
                 current_seq, current_rot = new_seq, new_rot
-                current_sheets, current_usable, current_energy = new_sheets, new_usable, new_energy
-                if current_energy < best_energy:
+                current_cost = new_cost
+                if current_cost < best_cost:
                     best_seq = current_seq[:]
                     best_rot = deepcopy(current_rot) if current_rot else None
-                    best_sheets = current_sheets
-                    best_usable = current_usable
-                    best_energy = current_energy
+                    best_cost = current_cost
                     no_improve = 0
                 else:
                     no_improve += 1
@@ -124,17 +113,17 @@ def simulated_annealing(items, W, H, allow_rotation=True,
 
         temp *= cooling_rate
         if verbose and no_improve % (iterations_per_temp * 5) == 0:
-            print(f"Температура: {temp:.2f}, текущее число листов: {current_sheets}, полезных остатков: {current_usable:.0f}, лучшее: {best_sheets} листов, {best_usable:.0f} остатков")
+            print(f"Температура: {temp:.2f}, текущая стоимость: {current_cost}, лучшая: {best_cost}")
 
     if verbose:
         print("Завершено.")
-        print(f"Лучшее решение: {best_sheets} листов, полезных остатков: {best_usable:.0f}")
+        print(f"Лучшее решение: {best_cost} листов")
 
     if return_sheets:
-        best_sheets_list, _ = pack_sequence(best_seq, items, W, H, rotations=best_rot)
-        return best_seq, best_rot, best_sheets, best_sheets_list
+        best_sheets, _ = pack_sequence(best_seq, items, W, H, rotations=best_rot)
+        return best_seq, best_rot, best_cost, best_sheets
     else:
-        return best_seq, best_rot, best_sheets
+        return best_seq, best_rot, best_cost
 
 # ====================== Визуализация ======================
 def draw_sheets_from_sequence(seq, rot, items, W, H, title="SA упаковка"):

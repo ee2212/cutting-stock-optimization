@@ -59,7 +59,7 @@ def run_comparison(max_parts=100, sa_fast_mode=True):
         sheet_area = W * H
 
         # ----- FFD -----
-        sheets_ffd = ffd(items, W, H, allow_rotation=True)  # FALSE ROTATION
+        sheets_ffd = ffd(items, W, H, allow_rotation=False)  # FALSE ROTATION
         cost_ffd = len(sheets_ffd)
         stats_ffd = analyze_leftovers(sheets_ffd, items, W, H)
         usable_ffd = stats_ffd['usable_leftover_area']
@@ -127,7 +127,7 @@ def run_comparison(max_parts=100, sa_fast_mode=True):
         sa_best_cost = float('inf')
         for run in range(n_runs):
             seq, rot, cost = simulated_annealing(
-                items=items, W=W, H=H, allow_rotation=True,
+                items=items, W=W, H=H, allow_rotation=False,
                 **sa_params, verbose=False
             )
             sa_costs.append(cost)
